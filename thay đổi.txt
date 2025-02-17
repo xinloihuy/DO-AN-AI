@@ -1,0 +1,1 @@
+Thay đổi: update độ linh hoạt cho thanh máu và thanh stamina, tự động hóa cho def load_sprite_sheet
