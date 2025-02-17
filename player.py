@@ -2,7 +2,7 @@ from os import listdir
 import pygame
 from os.path import join, isfile, splitext
 from PIL import Image
-from map.MAP import*
+from map.World import*
 
 def flip(sprites):
     """Lật danh sách các sprite theo chiều ngang"""
@@ -19,18 +19,19 @@ def load_sprite_sheets_quick(dir1, dir2, direction=False):
         sprite_sheet = pygame.image.load(join(path, image))
         width, height = sprite_sheet.get_size()
 
+        # Giả sử mỗi sprite có chiều rộng bằng chiều cao
         sprite_width = height  # Mỗi sprite là hình vuông
 
         # Tách các sprite từ sprite sheet
         sprites = []
         for i in range(0, width, sprite_width):
             sprite = sprite_sheet.subsurface((i, 0, sprite_width, height))
-            sprite = pygame.transform.scale(sprite, (sprite_width * 1.5, height * 1.5))
+            sprite = pygame.transform.scale(sprite, (sprite_width * 1.5, height * 1.5))  # Phóng to 2x
             sprites.append(sprite)
 
-
-        base_name = image.split('.')[0]
-        action = ''.join([i for i in base_name if not i.isdigit()])
+        # Phân loại sprite dựa trên tên file
+        base_name = image.split('.')[0]  # Bỏ phần mở rộng
+        action = ''.join([i for i in base_name if not i.isdigit()])  # Tách phần chữ (vd: 'run', 'idle')
 
         if action not in all_sprites:
             all_sprites[action] = {}
@@ -61,6 +62,9 @@ class Player(pygame.sprite.Sprite):
         self.jump_count = 0
         self.tiles = tiles
         
+
+        self.width = width
+        self.height = height
     def move(self, dx, dy):
         self.rect.x += dx
         self.rect.y += dy
@@ -93,11 +97,29 @@ class Player(pygame.sprite.Sprite):
         self.fall_count += 1
     
     def update_sprite(self):
-        pass
+        self.vel = 0
+        delay = self.RUN_DELAY if self.x_vel != 0 else self.ANIMATION_DELAY
+        sprite_sheet = "Idle"
+        if self.x_vel != 0:
+            sprite_sheet = "Run"
+        sprite_sheet_name = sprite_sheet + "_" + self.direction
+        sprites = self.SPRITES[sprite_sheet_name]
+        sprite_index = (self.animation_count // delay) % len(sprites)
+        self.sprite = sprites[sprite_index]
+        self.animation_count += 1
         
 
     def check_collision(self,x,y):
-        pass
+        
+        dx,dy = x,y
+        for tile in self.tiles :
+            if tile.rect.colliderect(self.rect.x + dx, self.rect.y, self.width, self.height) and isinstance(tile, Grass):
+                dx = 0
+            if tile.rect.colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
+                if y < 0:
+                    self.jump_count = 0
+                dy = 0
+        return dx,dy
 
 
     def draw(self, screen):
