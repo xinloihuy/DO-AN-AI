@@ -1,248 +1,116 @@
 import pygame
-from map.SETTINGS import screen_width, screen_height, tile_size, rows, cols, vel, FPS
+from map.SETTINGS import tile_size, vel, FPS
 from globals import*
 from map.Environment import*
 from GameOver import*
-from os import listdir
-from os.path import isfile, join, splitext
+from players.entity import Entity
 
-def crop_sprite(sprite):
-    mask = pygame.mask.from_surface(sprite)
-    rect = mask.get_bounding_rects()
-
-    if rect:
-        return sprite.subsurface(rect[0])
-    return sprite
-def flip(sprites):
-    return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
-
-def load_sprite_sheets_quick(dir1, dir2):
-    path = join("assets", dir1, dir2)
-    images = [f for f in listdir(path) if isfile(join(path, f))]
-
-    all_sprites = {}
-
-    for image in images:
-        sprite_sheet = pygame.image.load(join(path, image))
-        width, height = sprite_sheet.get_size()
-
-        sprite_width = height
-
-        sprites = []
-        for i in range(0, width, sprite_width):
-            
-            sprite = sprite_sheet.subsurface((i, 0, sprite_width, height))
-            sprite = crop_sprite(sprite)
-            sprites.append(sprite)
-
-        base_name = image.split('.')[0]
-        action = ''.join([i for i in base_name if not i.isdigit()])
-    
-        if action not in all_sprites:
-            all_sprites[action] = {}
-
-        all_sprites[action + "_right"] = sprites
-        all_sprites[action + "_left"] = flip(sprites)
-
-    return all_sprites
-
-
-class Player(pygame.sprite.Sprite):
-    SPRITES = load_sprite_sheets_quick('Character', 'Hero')
-    ANIMATION_DELAY = 8
-    RUN_DELAY = 10
-    GRAVITY = 2
-    def __init__(self,x,y):
-        global all_sprite
-        super().__init__()
-        self.image = self.SPRITES['Idle_right'][0]
-        self.x = x
-        self.y = y
-        self.width = tile_size*2
-        self.height = tile_size*2
-        self.image = pygame.transform.scale(self.image,(self.width,self.height))
-        self.vel = 4
-        self.x_vel = 0
-        self.y_vel = 0
-        self.rect = pygame.Rect(self.x,self.y,tile_size*2,tile_size*2)
-        # self.rect = self.image.get_rect()
-        # self.rect.topleft = (self.x,self.y)
+class Player(Entity):
+    def __init__(self, x, y, scale):
+        super().__init__(x, y, scale)
+        self.SPRITES,self.Heart_Icon,self.Mana_Icon = self.load_sprite_sheets(scale)
+        self.invincible_time = FPS # thời gian bất tử
+        self.mana = mana
+        self.mana_consumption = 7/FPS
+        self.mana_increase = 1.2/FPS
         
+    def load_sprite_sheets(self, scale_factor=1):
+        path = f"assets\Character\Adventurer"
+        all_sprites = {
+            "Idle": [pygame.transform.scale(self.crop_sprite(pygame.image.load(f"{path}/Idlee{i}.png")),(int(tile_size * scale_factor), int(tile_size * scale_factor))) \
+                    for i in range(0, 4)],
+            "Run": [pygame.transform.scale(self.crop_sprite(pygame.image.load(f"{path}/Run{i}.png")), (int(tile_size * scale_factor), int(tile_size * scale_factor))) \
+                    for i in range(0, 6)],
+            "Jump": [pygame.transform.scale(self.crop_sprite(pygame.image.load(f"{path}/Jump{i}.png")), (int(tile_size * scale_factor), int(tile_size * scale_factor))) \
+                    for i in range(0, 4)]
+        }
+        path = r"assets/Attribute_Player/Heart"
+        Heart_Icon = [pygame.transform.scale(self.crop_sprite(pygame.image.load(f"{path}/Heart{i}.png")),(tile_size*1.2, tile_size*1.2)) \
+                    for i in range(0, 2)]
 
-
-        self.animation_count = 0
-        self.direction = "right"
-        self.action = "Idle"
-
-        
-        self.jump_count = 0
-        self.isJump = False
-        self.fall_count = 0
-
-
-        self.health = 10 
-        self.defense = 0 
-        self.attack = 5
-        self.gold = 0
-        self.score = 0
-        self.game_over = False
-        self.player_update = False
-        all_sprite.add(self)
-    
-    def move(self,dx,dy,tiles):
-        dx,dy = self.checkcollision(tiles,dx,dy)
-        self.rect.x += dx
-        self.rect.y += dy
-    
-    def move_left(self, vel):
-        self.x_vel = -vel
-        if self.direction != "left":
-            self.direction = "left"
-            self.animation_count = 0
-
-    def move_right(self, vel):
-        self.x_vel = vel
-        if self.direction != "right":
-            self.direction = "right"
-            self.animation_count = 0
-    
-    def jump(self):
-        self.y_vel = -15
-        self.animation_count = 0
-        self.jump_count += 1
-        if self.jump_count >= 2:
-            self.y_vel = 0
-            self.jump_count = 0
+        path = r"assets/Attribute_Player/Mana"
+        Mana_Icon = [pygame.transform.scale(self.crop_sprite(pygame.image.load(f"{path}/Mana{i}.png")),(tile_size*1.2, tile_size*1.2)) \
+                    for i in range(0, 4)]
+        return all_sprites,Heart_Icon,Mana_Icon
 
     def update_sprite(self):
+        super().update_sprite()
         self.action = "Idle"
-        DELAY = self.RUN_DELAY if self.x_vel != 0 else self.ANIMATION_DELAY
-        
-        if self.x_vel != 0:
-            self.action = "Run"
-        
-        
-        sprite_sheet_name = self.action + "_" + self.direction
-        
-        sprites = self.SPRITES[sprite_sheet_name]
-        sprite_index = (self.animation_count // DELAY) % len(sprites)
-        self.image = sprites[sprite_index]
-        self.animation_count += 1
 
-    def update(self,tiles):
-        pygame.display.update()
+        if self.action == "Idle" and self.mana < mana:
+            self.mana += self.mana_increase
+
+    def update(self, tiles):
         self.x_vel = 0
-        print(self.rect)
 
-
+        # Update Gravity
         self.y_vel += min(1, (self.fall_count / FPS) * self.GRAVITY)
         self.fall_count += 1
 
+        # Handle player input
+        keys = pygame.key.get_pressed()
 
-
-        keys = pygame.key.get_pressed() 
-        dx,dy = 0,0
-        if (keys[pygame.K_LEFT] or keys[pygame.K_a])and self.rect.x > vel:
-            dx = -self.vel 
+        if (keys[pygame.K_LEFT] or keys[pygame.K_a]) and self.rect.x > vel:
             self.move_left(vel)
-            if self.direction != "left":
-                self.direction = "left"
-                self.animation_count = 0
-            #self.checkcolisionx(tiles,dx)  
-        if (keys[pygame.K_RIGHT] or keys[pygame.K_d])and self.rect.x < 150*tile_size:       
-            dx = self.vel
+            self.mana -= self.mana_consumption
+
+        if (keys[pygame.K_RIGHT] or keys[pygame.K_d]) and self.rect.x < 150 * tile_size:
             self.move_right(vel)
-            if self.direction != "right":
-                self.direction = "right"
-                self.animation_count = 0
-            #self.checkcolisionx(tiles,dx)
-        if (keys[pygame.K_SPACE] or keys[pygame.K_w])and self.isJump == False :
+            self.mana -= self.mana_consumption
+            
+        if (keys[pygame.K_SPACE] or keys[pygame.K_w]) and not self.isJump:
             self.jump()
-            self.isJump = True  
-            self.jump_count = -15
+            self.isJump = True
             self.animation_count = 0
-            self.jump_count += 1
+            self.mana -= self.mana_consumption
 
-            # self.y_vel = -15
-            # self.jump_count += 1
-            # if self.jump_count >= 2:
-            #     self.y_vel = 0
-            #     self.jump_count = 0
+        if not (keys[pygame.K_w] or keys[pygame.K_SPACE]) and self.jump_count > 1:
+            self.isJump = False
 
-        if (keys[pygame.K_w] or keys[pygame.K_SPACE]) == False and self.jump_count > 2:
-            self.isJump = False  
-            self.jump_count = 0
+        # Move and update sprite
+        if self.mana < 0:
+            self.x_vel = 0
+            self.mana = max(-2,self.mana)
         
-    
-        
-
-        print(self.y_vel)
-        
-        
-        
-
-
-        # dx,dy = self.checkcollision(tiles,dx,dy)
-        
-        # print(f"player: {game_over}")
-        # self.rect.x += dx
-        # self.rect.y += dy
-
-        self.move(self.x_vel,self.y_vel,tiles)
-        
+        self.move(self.x_vel, self.y_vel, tiles)
         self.update_sprite()
-    
 
-    def checkcollision(self, tiles, x, y):
-        dx, dy = x, y
-        global game_over
+    def draw_bar(self, screen, camera):
+        """Vẽ thanh máu của Player"""
 
-        for tile in tiles:
-            if tile.rect.colliderect(self.rect.x + dx, self.rect.y, self.width, self.height) and isinstance(tile, Ground):
-                dx = 0
-            if tile.rect.colliderect(self.rect.x + dx, self.rect.y, self.width, self.height) and (isinstance(tile, Grass) or isinstance(tile, Tree)):
-                self.x_vel *= 2.5
-            else:
-                self.vel = vel
+        bar_width = tile_size*6  # Chiều rộng thanh máu
+        bar_height = tile_size/2  # Chiều cao thanh máu
+        fill = (self.health / health) * bar_width  # Tính phần máu còn lại (giả sử máu tối đa là 10)
 
-            if tile.rect.colliderect(self.rect.x, self.rect.y + dy, self.width, self.height) and (isinstance(tile, Ground) or isinstance(tile, Water)):
-                if isinstance(tile, Water):
-                    self.game_over = True
-                else:
-                    # Check if jumping
-                    if self.y_vel < 0:  # Nhân vật đang nhảy lên
-                        dy = tile.rect.bottom - self.rect.top
-                        self.y_vel = 0  # Dừng lại khi chạm trần
-                    # Check if falling
-                    elif self.y_vel >= 0:  # Nhân vật đang rơi xuống
-                        dy = tile.rect.top - self.rect.bottom
-                        self.y_vel = 0  # Dừng lại khi chạm đất
-                        self.jump_count = 0  # Reset jump count khi chạm đất
-                        self.isJump = False  # Đặt lại trạng thái nhảy
+        # Vị trí thanh máu
+        bar_x_health = (self.width // 2) - (bar_width // 2) + tile_size*3.5
+        bar_y_health = tile_size*1.2/2
 
-        
+        # Vẽ viền thanh máu (red)
+        pygame.draw.rect(screen, (255, 0, 0), (bar_x_health, bar_y_health, bar_width, bar_height))
+        # Vẽ thanh máu bên trong (green)
+        pygame.draw.rect(screen, (0, 255, 0), (bar_x_health, bar_y_health, fill, bar_height))
+        # Vẽ viền ngoài thanh máu (black)
+        pygame.draw.rect(screen, (0, 0, 0), (bar_x_health, bar_y_health, bar_width, bar_height),1)
 
-        return dx, dy
-
-    
-    
-    def handle_upgrade(self,upgrade_attack_button, upgrade_heard_button, upgrade_shield_button):    
-            if upgrade_attack_button.is_pressed():
-                if self.gold-20 >= 0:
-                    self.gold -= 20
-                    self.attack += 1 
-            elif upgrade_heard_button.is_pressed():
-                if self.gold-20 >= 0:
-                    self.gold -= 20
-                    self.health += 1
-            elif upgrade_shield_button.is_pressed():
-                if self.gold-20 >= 0:
-                    self.gold -= 20
-                    self.defense += 1 
-    
-        
-    
-        
+        bar_x_mana = (self.width // 2) - (bar_width // 2) + tile_size*3.5
+        bar_y_mana = tile_size*2
+        fill = (self.mana / mana) * bar_width
+        # Vẽ viền thanh mana (white)
+        pygame.draw.rect(screen, (255, 255, 255), (bar_x_mana, bar_y_mana, bar_width, bar_height))
+        # Vẽ thanh mana bên trong (blue)
+        pygame.draw.rect(screen, (0, 0, 255), (bar_x_mana, bar_y_mana, fill, bar_height))
+        # Vẽ viền ngoài thanh mana (black)
+        pygame.draw.rect(screen, (0, 0, 0), (bar_x_mana, bar_y_mana, bar_width, bar_height),1)
 
 
+        if self.health >= health/2:
+            screen.blit(self.Heart_Icon[0])
+        else:
+            screen.blit(self.Heart_Icon[1])
+
+        index = int((1 - self.mana / mana) * 4)
+        index = min(index, 3)  # Đảm bảo không vượt quá 3
+
+        screen.blit(self.Mana_Icon[index],(0,tile_size*1.5))
 
