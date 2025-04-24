@@ -3,6 +3,7 @@ from map.SETTINGS import tile_size, vel, FPS
 from globals import*
 from players.entity import Entity
 import os
+from map.Environment import*
 from os import listdir
 from os.path import isfile, join
 
@@ -11,6 +12,7 @@ class Enemy(Entity):
         super().__init__(x, y, scale)
         self.SPRITES = self.load_sprite_sheets(scale)
         self.vel1 = 2
+        self.health_max = 10
 
         # Phạm vi di chuyển của kẻ địch
         self.move_range = tile_size * 4
@@ -29,35 +31,20 @@ class Enemy(Entity):
         self.frame_delay = 5  # Chỉ thay đổi frame mỗi 5 lần update
         self.frame_counter = 0  # Đếm số lần update
         
-        self.attack_frame_delay = 4  # Giảm tốc độ frame khi chém
+        self.attack_frame_delay = 5  # Giảm tốc độ frame khi chém
         self.attack_frame_counter = 0  # Bộ đếm frame của animation chém
 
-        
-    def load_transparent_image(self, path):
-        img = pygame.image.load(path).convert()
-        colorkey = img.get_at((0, 0))
-        img.set_colorkey(colorkey)
-        return img
-
-    def crop_sprite(self, sprite):
-        """Cắt vùng chứa nhân vật trong sprite và giữ transparency"""
-        mask = pygame.mask.from_surface(sprite)
-        rect = mask.get_bounding_rects()
-
-        if rect:
-            cropped = sprite.subsurface(rect[0]).copy()
-            return cropped.convert_alpha()
-
-        return sprite.convert_alpha()
+        all_sprite_enemies.add(self)
+    
 
     def load_sprite_sheets(self, scale_factor=1):
         base_path = r"assets\Enemy\Saber"
         all_sprites = {}
 
         actions = {
-            "Idle": "đứng yên",
-            "Run": "chạy",
-            "Attack": "tấn công"
+            "Idle": "đứng yên1",
+            "Run": "chạy1",
+            "Attack": "tấn công1"
         }
 
         for action, folder in actions.items():
@@ -72,29 +59,23 @@ class Enemy(Entity):
 
             for file in files:
                 image = self.load_transparent_image(join(action_path, file))
-                image = self.crop_sprite(image)
-                image = pygame.transform.scale(image, (int(tile_size * scale_factor), int(tile_size * scale_factor)))
+                # image = self.crop_sprite(image)
+                image = pygame.transform.scale(image, (int(tile_size * scale_factor * 1.5), int(tile_size * scale_factor)))
                 all_sprites[action].append(image)
 
         return all_sprites
 
-    def move(self, x_vel, y_vel, tiles):
-        dx, dy = self.checkcollision(tiles, x_vel, y_vel)
-        self.rect.x += dx
-        self.rect.y += dy
     
-    def attack_player(self, player):
+    def attack_player(self, player, attack_speed=1):
         """Gây sát thương cho nhân vật khi gặp"""
-        if self.time_to_attack == 0:  # Chỉ cho phép tấn công khi hết thời gian chờ
-            damage = max(0, self.attack - player.defense)
+        if self.time_to_attack == 0:
+            damage = max(0, self.attack - player.defense - player.resistance)   
             player.health -= damage
-            self.time_to_attack = FPS    # Đặt thời gian chờ (1 giây nếu FPS=60)
+            self.time_to_attack = FPS // attack_speed
 
             if player.health <= 0:
                 player.game_over = True
 
-
-        
     def update(self, tiles, player):
         # Áp dụng trọng lực
         self.y_vel += min(1, (self.fall_count / FPS) * self.GRAVITY)
@@ -104,6 +85,14 @@ class Enemy(Entity):
         if self.rect.colliderect(player.rect):
             self.x_vel = 0  # Dừng di chuyển khi chạm nhân vật
 
+            player_x = player.rect.centerx
+            boss_x = self.rect.centerx
+
+            if player_x < boss_x:
+                self.direction = "left"
+            else:
+                self.direction = "right"
+            
             # Nếu chưa ở trạng thái Attack, bắt đầu chém
             if self.current_action != "Attack":
                 self.current_action = "Attack"
@@ -125,42 +114,50 @@ class Enemy(Entity):
             self.current_action = "Run"
             self.patrol(tiles)
 
+
+        if self.health < 0:
+            self.rect.x = -1000
+            self.rect.y = -1000
+
+        if player.game_over:
+            self.rect.topleft = (self.x, self.y)
+            self.x_vel = 0
+            self.y_vel = 0
+            self.current_action = "Idle"
+            self.current_frame = 0
+            self.health = self.health_max
+        
+
         # Cập nhật vị trí và sprite
         self.move(self.x_vel, self.y_vel, tiles)
         self.update_sprite()
-
 
     def update_sprite(self):
         if self.current_action in self.SPRITES:
             frames = self.SPRITES[self.current_action]
             max_frames = len(frames) - 1
-            self.current_frame = min(self.current_frame, max_frames)  # Đảm bảo không bị lỗi out of range
-
-            self.image = frames[self.current_frame]  # Cập nhật hình ảnh
+            self.current_frame = min(self.current_frame, max_frames)
+            self.image = frames[self.current_frame]
+            
+            self.rect = self.image.get_rect(center=self.rect.center) # thêm lúc nãy
 
             if self.direction == "left":
                 self.image = pygame.transform.flip(self.image, True, False)
 
-            # 🔥 **Tăng frame khi chạy**
             if self.current_action == "Run":
                 self.frame_counter += 1
                 if self.frame_counter >= self.frame_delay:
                     self.current_frame = (self.current_frame + 1) % len(frames)
-                    self.frame_counter = 0  # Reset bộ đếm
-
-            # 🔥 **Chậm frame khi chém**
+                    self.frame_counter = 0
             elif self.current_action == "Attack":
                 self.attack_frame_counter += 1
                 if self.attack_frame_counter >= self.attack_frame_delay:
                     if self.current_frame < max_frames:
-                        self.current_frame += 1  # Chuyển frame tiếp theo
+                        self.current_frame += 1
                     else:
-                        self.current_action = "Idle"  # Trở lại trạng thái ban đầu
+                        self.current_action = "Idle"
                         self.current_frame = 0
-                    self.attack_frame_counter = 0  # Reset bộ đếm
-
-
- 
+                    self.attack_frame_counter = 0
 
     def check_wall_collision(self, tiles, x_offset):
         """Kiểm tra xem kẻ địch có bị kẹt vào tường không"""
@@ -196,4 +193,17 @@ class Enemy(Entity):
                 self.direction = "left"
                 self.x_vel = -self.vel1
         
+    def draw_health_bar(self, screen, camera):
+        """Vẽ thanh máu của Enemy"""
+        bar_width = 50  # Chiều rộng thanh máu
+        bar_height = 5  # Chiều cao thanh máu
+        fill = (self.health / 10) * bar_width  # Tính phần máu còn lại (giả sử máu tối đa là 10)
 
+        # Vị trí thanh máu (tính toán dựa trên vị trí của Entity và camera)
+        bar_x = self.rect.x + (self.width // 2) - (bar_width // 2) + camera.camera.x + 20
+        bar_y = self.rect.y + 15 + camera.camera.y
+
+        # Vẽ viền thanh máu (màu đỏ)
+        pygame.draw.rect(screen, "gray", (bar_x, bar_y, bar_width, bar_height))
+        # Vẽ thanh máu bên trong (màu xanh)
+        pygame.draw.rect(screen, "red", (bar_x, bar_y, fill, bar_height))

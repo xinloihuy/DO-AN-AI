@@ -16,9 +16,11 @@ class Rocket(pygame.sprite.Sprite):
         self.active = False 
         self.delay = 0 
         self.counter = 0  
+        self.explosion_time = 0
+        self.index = 0
         self.vel = vel
-        enemies_group.add(self)
-    def check_rocket(self,screen,player,time_counter,camera):
+        self.is_collide = False
+    def check_rocket(self,screen,player,time_counter,camera,explosion):
         if player.game_over == False:
             self.counter += 1 
             if self.counter > time_counter:
@@ -31,16 +33,16 @@ class Rocket(pygame.sprite.Sprite):
                     else:
                         self.rect.x = player.rect.x + 15*tile_size if player.rect.x + 15*tile_size <= 149*tile_size else 149 *tile_size
                     self.delay +=1
-                    self.draw_rocket(screen,player,0,camera) 
+                    self.draw_rocket(screen,player,0,camera,explosion) 
                 else:
-                    self.draw_rocket(screen,player,1,camera) 
+                    self.draw_rocket(screen,player,1,camera,explosion) 
                     
                 if self.rect.x < 0:
                     self.delay = 0
                     self.active = False
                     self.rect.x = screen_width
                     self.rect.y = screen_height//2 - tile_size
-    def draw_rocket(self,screen,player,mode,camera):
+    def draw_rocket(self,screen,player,mode,camera,explosion):
         if mode == 0:
             if player.rect.y > self.rect.y:
                 self.rect.y += self.vel
@@ -54,17 +56,25 @@ class Rocket(pygame.sprite.Sprite):
             
         elif mode == 1:
             self.width = tile_size*2
-            screen.blit(self.image, camera.apply(self))
-            self.rect.x -= self.vel 
-            if self.rect.colliderect(player.rect):
-                player.health -= 5
-                self.rect.x = -tile_size
-                self.counter = 0
-                self.deplay = 00
-                if player.health <= 0:
-                    player.game_over = True
-    
+            if self.is_collide == False:
+                screen.blit(self.image, camera.apply(self))
+                self.rect.x -= self.vel
             
+            if self.rect.colliderect(player.rect)  and self.is_collide == False:
+                player.health -= (5/2 - player.resistance*11)
+                self.counter = 0
+                self.deplay = 0
+                self.is_collide = True
+
+            if self.is_collide == True:
+                explosion.update(player,screen,camera)
+                if explosion.complete_exposion():
+                    self.is_collide = False
+                    
+                    self.rect.x = -tile_size
+                if player.health <= 0 :
+                    player.game_over = True
+
             
                         
         

@@ -11,7 +11,7 @@ class Entity(pygame.sprite.Sprite):
         super().__init__()
         
         self.JUMP_HEIGHT = 13
-        self.ANIMATION_DELAY = 29
+        self.ANIMATION_DELAY = 18
         self.RUN_DELAY = 17
         self.GRAVITY = 2
         self.SCALE_FACTOR = scale
@@ -37,7 +37,7 @@ class Entity(pygame.sprite.Sprite):
         
         self.jump_count = 0
         self.isJump = False
-        self.fall_count = 0
+        self.fall_count = 20
 
 
         self.health = health
@@ -48,13 +48,15 @@ class Entity(pygame.sprite.Sprite):
         self.game_over = False
         self.player_update = False
 
-        all_sprite.add(self)
+
     
     def load_transparent_image(self, path):
         img = pygame.image.load(path).convert()
         colorkey = img.get_at((0, 0))
         img.set_colorkey(colorkey)
         return img
+
+    
 
     def crop_sprite(self, sprite):
         """Cắt vùng chứa nhân vật trong sprite"""
@@ -66,7 +68,6 @@ class Entity(pygame.sprite.Sprite):
         return sprite  # Nếu không có gì, giữ nguyên
     
     def flip(self, sprites):
-        """Lật danh sách các sprite theo chiều ngang"""
         return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
 
     
@@ -120,6 +121,7 @@ class Entity(pygame.sprite.Sprite):
         for tile in tiles:
             if tile.rect.colliderect(self.rect.x + dx, self.rect.y, self.width, self.height) and isinstance(tile, Ground):
                 dx = 0
+                
             if tile.rect.colliderect(self.rect.x + dx, self.rect.y, self.width, self.height) and (isinstance(tile, Grass) or isinstance(tile, Tree)):
                 self.vel = 1.5*vel
             else:
@@ -141,17 +143,6 @@ class Entity(pygame.sprite.Sprite):
         
         return dx, dy
 
-    def draw_health_bar(self, screen, camera):
-        """Vẽ thanh máu của Entity"""
-        bar_width = 50  # Chiều rộng thanh máu
-        bar_height = 5  # Chiều cao thanh máu
-        fill = (self.health / 10) * bar_width  # Tính phần máu còn lại (giả sử máu tối đa là 10)
-
-        # Vị trí thanh máu (tính toán dựa trên vị trí của Entity và camera)
-        bar_x = self.rect.x + (self.width // 2) - (bar_width // 2) + camera.camera.x
-        bar_y = self.rect.y - 10 + camera.camera.y  # Đặt thanh máu phía trên Entity
-
-        # Vẽ viền thanh máu (màu đỏ)
-        pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))
-        # Vẽ thanh máu bên trong (màu xanh)
-        pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, fill, bar_height))
+   
+        
+    

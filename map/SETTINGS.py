@@ -10,6 +10,7 @@ game_over = False
 tiles_type = 31
 health = 10
 mana = 30
+damage = 3
 
 
 img_sunset = pygame.image.load('assets/images/sunset.png')
@@ -32,3 +33,23 @@ img_bar_upgrade = pygame.transform.scale(img_bar_upgrade,(tile_size*18, tile_siz
 
 img_gold = pygame.image.load('assets/images/gold.png')
 img_gold = pygame.transform.scale(img_gold,(tile_size,tile_size))
+
+
+img_mountains1 = pygame.image.load('assets/images/Wasteland_Mountains_1.png')
+img_mountains1 = pygame.transform.scale(img_mountains1,(screen_width,screen_height))
+
+img_mountains2 = pygame.image.load('assets/images/Wasteland_Mountains_2.png')
+img_mountains2 = pygame.transform.scale(img_mountains2,(screen_width,screen_height))
+
+
+img_mountains3 = pygame.image.load('assets/images/Wasteland_Mountains_1.png')
+img_mountains3 = pygame.transform.scale(img_mountains1,(screen_width,screen_height))
+
+img_mountains4 = pygame.image.load('assets/images/Wasteland_Mountains_2.png')
+img_mountains4 = pygame.transform.scale(img_mountains2,(screen_width,screen_height))
+
+img_mountains5 = pygame.image.load('assets/images/Wasteland_Mountains_1.png')
+img_mountains5 = pygame.transform.scale(img_mountains1,(3*screen_width,screen_height))
+
+img_mountains6 = pygame.image.load('assets/images/Wasteland_Mountains_2.png')
+img_mountains6 = pygame.transform.scale(img_mountains2,(3*screen_width,screen_height))
