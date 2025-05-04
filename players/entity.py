@@ -11,7 +11,7 @@ class Entity(pygame.sprite.Sprite):
         super().__init__()
         
         self.JUMP_HEIGHT = 13
-        self.ANIMATION_DELAY = 29
+        self.ANIMATION_DELAY = 18
         self.RUN_DELAY = 17
         self.GRAVITY = 2
         self.SCALE_FACTOR = scale
@@ -37,7 +37,7 @@ class Entity(pygame.sprite.Sprite):
         
         self.jump_count = 0
         self.isJump = False
-        self.fall_count = 0
+        self.fall_count = 20
 
 
         self.health = health
@@ -48,8 +48,16 @@ class Entity(pygame.sprite.Sprite):
         self.game_over = False
         self.player_update = False
 
-        all_sprite.add(self)
+
     
+    def load_transparent_image(self, path):
+        img = pygame.image.load(path).convert()
+        colorkey = img.get_at((0, 0))
+        img.set_colorkey(colorkey)
+        return img
+
+    
+
     def crop_sprite(self, sprite):
         """Cắt vùng chứa nhân vật trong sprite"""
         mask = pygame.mask.from_surface(sprite)  # Tạo mask (bỏ phần trong suốt)
@@ -60,41 +68,7 @@ class Entity(pygame.sprite.Sprite):
         return sprite  # Nếu không có gì, giữ nguyên
     
     def flip(self, sprites):
-        """Lật danh sách các sprite theo chiều ngang"""
         return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
-
-    def load_sprite_sheets_quick(self, dir1, dir2):
-        """Tải sprite sheet từ thư mục, cắt thành từng frame, và lưu vào dictionary"""
-        path = join("assets", dir1, dir2)
-        images = [f for f in listdir(path) if isfile(join(path, f))]
-
-        all_sprites = {}
-
-        for image in images:
-            sprite_sheet = pygame.image.load(join(path, image))
-            width, height = sprite_sheet.get_size()
-
-            sprite_width = height  # Mỗi sprite là hình vuông
-            
-            # Tách các sprite từ sprite sheet
-            sprites = []
-            for i in range(0, width, sprite_width):
-                
-                sprite = sprite_sheet.subsurface((i, 0, sprite_width, height))
-                sprite = self.crop_sprite(sprite)
-                sprites.append(sprite)
-
-            # Phân loại sprite dựa trên tên file
-            base_name = image.split('.')[0]  # Bỏ phần mở rộng
-            action = ''.join([i for i in base_name if not i.isdigit()])  # Tách phần chữ (vd: 'run', 'idle')
-        
-            if action not in all_sprites:
-                all_sprites[action] = {}
-
-            all_sprites[action + "_right"] = sprites
-            all_sprites[action + "_left"] = self.flip(sprites)
-
-        return all_sprites
 
     
     def move(self,dx,dy,tiles):
@@ -147,6 +121,7 @@ class Entity(pygame.sprite.Sprite):
         for tile in tiles:
             if tile.rect.colliderect(self.rect.x + dx, self.rect.y, self.width, self.height) and isinstance(tile, Ground):
                 dx = 0
+                
             if tile.rect.colliderect(self.rect.x + dx, self.rect.y, self.width, self.height) and (isinstance(tile, Grass) or isinstance(tile, Tree)):
                 self.vel = 1.5*vel
             else:
@@ -168,17 +143,6 @@ class Entity(pygame.sprite.Sprite):
         
         return dx, dy
 
-    def draw_health_bar(self, screen, camera):
-        """Vẽ thanh máu của Entity"""
-        bar_width = 50  # Chiều rộng thanh máu
-        bar_height = 5  # Chiều cao thanh máu
-        fill = (self.health / 10) * bar_width  # Tính phần máu còn lại (giả sử máu tối đa là 10)
-
-        # Vị trí thanh máu (tính toán dựa trên vị trí của Entity và camera)
-        bar_x = self.rect.x + (self.width // 2) - (bar_width // 2) + camera.camera.x
-        bar_y = self.rect.y - 10 + camera.camera.y  # Đặt thanh máu phía trên Entity
-
-        # Vẽ viền thanh máu (màu đỏ)
-        pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))
-        # Vẽ thanh máu bên trong (màu xanh)
-        pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, fill, bar_height))
+   
+        
+    
