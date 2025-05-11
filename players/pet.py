@@ -5,6 +5,16 @@ from globals import*
 from map.Environment import*
 import os
 from collections import deque
+from enum import Enum
+import sys
+import random
+sys.setrecursionlimit(1000000)
+
+class PathAlgo(Enum):
+    BFS = 1
+    AND_OR = 2
+    BACKTRACK = 3
+
 
 class Pet(Entity):
     def __init__(self, x, y, scale, player,map):
@@ -18,7 +28,7 @@ class Pet(Entity):
         self.attack_cooldown = 0
 
         global vel
-        vel = 5.5
+        vel = 3.5
         self.is_running = False
 
         self.player = player
@@ -26,6 +36,19 @@ class Pet(Entity):
         self.path = []
         self.move_up = False
         self.move_down = False
+
+        self.pathfinding_strategy = self.find_path_bfs  # Mặc định dùng BFS
+
+        self.selected_algo = PathAlgo.BFS
+        self.font = pygame.font.SysFont("Courier New", 20)
+        
+        # Định nghĩa vùng nút
+        self.buttons = {
+            PathAlgo.BFS: pygame.Rect(tile_size*10, tile_size/2, 120, 30),
+            PathAlgo.AND_OR: pygame.Rect(tile_size*15, tile_size/2, 120, 30),
+            PathAlgo.BACKTRACK: pygame.Rect(tile_size*20, tile_size/2, 120, 30),
+        }
+        self.search_radius = 1000  # Bán kính tìm kiếm cho thuật toán AND-OR và BACKTRACK
 
         all_sprite.add(self)
 
@@ -77,10 +100,19 @@ class Pet(Entity):
 
 
     def find_target(self):
+        current_time = pygame.time.get_ticks()
+        # if not hasattr(self, 'last_pathfind_time'):
+        #     self.last_pathfind_time = 0
+
+        # # Only execute pathfinding if enough time has passed (1000ms)
+        # if current_time - self.last_pathfind_time < 1000:
+        #     return
+
         if self.distance_to(self.player) > 350 and self.player.action != "Idlee":
             self.target = self.player
             if self.distance_to(self.player) > tile_size:
-                self.path = self.find_path_to(self.player.rect.center)
+                self.path = self.pathfinding_strategy(self.player.rect.center)
+                self.last_pathfind_time = current_time
         else:
             self.target = None
             closest_enemy = None
@@ -93,15 +125,17 @@ class Pet(Entity):
 
             if closest_enemy and closest_distance < tile_size*6:
                 self.target = closest_enemy
-                self.path = self.find_path_to(self.target.rect.center)
+                self.path = self.pathfinding_strategy(self.target.rect.center)
+                self.last_pathfind_time = current_time
             else:
                 self.target = self.player
                 if self.distance_to(self.player) > tile_size*2:
-                    self.path = self.find_path_to(self.player.rect.center)
+                    self.path = self.pathfinding_strategy(self.player.rect.center)
+                    self.last_pathfind_time = current_time
                 else:
                     self.path = []
 
-    def find_path_to(self, target_pos):
+    def find_path_bfs(self, target_pos):
         """BFS pathfinding"""
         
         start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
@@ -143,12 +177,114 @@ class Pet(Entity):
         
         return self.avoid_obstacle()
 
+    def find_path_and_or_search(self, target_pos):
+        start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
+        goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
+        
+        # Define search boundaries
+        min_x = min(start[0], goal[0])
+        max_x = max(start[0], goal[0])
+        min_y = min(start[1], goal[1])
+        max_y = max(start[1], goal[1])
+
+        visited = []
+        plan = []
+
+        def or_search(current, depth):
+            nonlocal plan
+            if depth > self.search_radius or current in visited:
+                return False
+            if current == goal:
+                return True
+                
+            visited.append(current)
+            neighbors = [(x,y) for x,y in self.get_neighbors(current) 
+                        if min_x <= x <= max_x and min_y <= y <= max_y]
+            
+            for nbr in neighbors:
+                plan.append(nbr)
+                if and_search([nbr], depth + 1):
+                    return True
+                plan.pop()
+            visited.remove(current)
+            return False
+
+        def and_search(states, depth):
+            nonlocal plan
+            print(depth)
+            if depth > self.search_radius:
+                return False
+            if all(s == goal for s in states):
+                return True
+                
+            common_actions = []
+            for s in states:
+                neighbors = [(x,y) for x,y in self.get_neighbors(s)
+                            if min_x <= x <= max_x and min_y <= y <= max_y]
+                common_actions.extend(neighbors)
+            
+            for action in set(common_actions):
+                next_states = []
+                for s in states:
+                    if action not in self.get_neighbors(s):
+                        break
+                    next_states.append(action)
+                else:
+                    plan.append(action)
+                    if or_search(action, depth + 1):
+                        return True
+                    plan.pop()
+            return False
+
+        if not self.is_obstacle(goal) and or_search(start, 0):
+            return [(x * tile_size, y * tile_size) for x, y in plan]
+        return self.avoid_obstacle()
+
+    def find_path_backtracking(self, target_pos):
+        start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
+        goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
+
+        # Define search boundaries
+        min_x = min(start[0], goal[0])
+        max_x = max(start[0], goal[0])
+        min_y = min(start[1], goal[1])
+        max_y = max(start[1], goal[1])
+
+        visited = set()
+        path = []
+        
+        def backtrack(current, depth=0):
+            nonlocal path
+            if current == goal:
+                return True
+            if depth >= self.search_radius or current in visited:
+                return False
+                
+            visited.add(current)
+            neighbors = [(x,y) for x,y in self.get_neighbors(current)
+                        if min_x <= x <= max_x and min_y <= y <= max_y]
+            
+            for nbr in neighbors:
+                path.append(nbr)
+                if backtrack(nbr, depth + 1):
+                    return True
+                path.pop()
+            visited.remove(current)
+            return False
+
+        if not self.is_obstacle(goal) and backtrack(start):
+            return [(x * tile_size, y * tile_size) for x, y in path]
+        return self.avoid_obstacle()
+
+
+
     def get_neighbors(self, pos):
         """
         Trả về danh sách các vị trí xung quanh nhưng chỉ nếu không bị vật cản.
         """
         x, y = pos
         neighbors = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+        # random.shuffle(neighbors)
         return [neighbor for neighbor in neighbors if not self.is_obstacle(neighbor)]
 
     def is_obstacle(self, pos):
@@ -185,17 +321,18 @@ class Pet(Entity):
 
         if len(self.path) < 9:
             if self.target == self.player:
-                ty = self.player.rect.centery - 40  # Y offset cho player
+                ty = self.player.rect.centery  # Y offset cho player
 
         dx = tx - self.rect.centerx
         dy = ty - self.rect.centery
-
 
         dist = max(1, (dx**2 + dy**2)**0.5)
         dx /= dist
         dy /= dist
 
+        # Ensure equal velocity in both directions
         self.x_vel = dx * vel
+        self.is_running = abs(dx) > 0.1  # Set running state based on horizontal movement
         
         if len(self.path) < 7:
             self.y_vel = dy * vel
@@ -242,8 +379,31 @@ class Pet(Entity):
         self.animation_count = 0
         self.action = "Attack"
         self.is_attacking = True
-        self.attack_cooldown = FPS  # Khoảng thời gian chờ trước khi tấn công tiếp, có thể tùy chỉnh
+        self.attack_cooldown = FPS  # Khoảng thời gian chờ trước khi tấn công tiếp
 
         hits = pygame.sprite.spritecollide(self, all_sprite_enemies, False)
         for enemy in hits:
             enemy.health -= self.attack
+
+    def set_pathfinding_algo(self, algo: PathAlgo):
+        self.selected_algo = algo
+        if algo == PathAlgo.BFS:
+            self.pathfinding_strategy = self.find_path_bfs
+        elif algo == PathAlgo.AND_OR:
+            self.pathfinding_strategy = self.find_path_and_or_search
+        elif algo == PathAlgo.BACKTRACK:
+            self.pathfinding_strategy = self.find_path_backtracking
+
+    def handle_click(self, pos):
+        for algo, rect in self.buttons.items():
+            if rect.collidepoint(pos):
+                self.set_pathfinding_algo(algo)
+                print(f"Switched to: {algo.name}")
+
+    def draw_3_button(self, screen):
+        # Vẽ các nút chọn thuật toán
+        for algo, rect in self.buttons.items():
+            color = (0, 200, 0) if algo == self.selected_algo else (100, 100, 100)
+            pygame.draw.rect(screen, color, rect)
+            text = self.font.render(algo.name, True, (255, 255, 255))
+            screen.blit(text, (rect.x + 5, rect.y + 5))
