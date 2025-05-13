@@ -9,6 +9,9 @@ class Camera:
         self.y = 0
     def apply(self, sprite):
         return sprite.rect.move(self.camera.topleft)
+    def apply_position(self, pos):
+        x, y = pos
+        return (x + self.camera.topleft[0], y + self.camera.topleft[1])
     
     def update(self, target):
         self.x = -target.rect.x + screen_width//2
