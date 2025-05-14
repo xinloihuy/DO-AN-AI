@@ -179,72 +179,70 @@ class Pet(Entity):
         
         return self.avoid_obstacle()
 
-    # def find_path_and_or_search(self, target_pos):
-    #     """
-    #     Tìm đường đi sử dụng ý tưởng AND-OR (giống như BFS với di chuyển đơn và kép).
-    #     Trả về đường đi tối ưu (ít hành động nhất) hoặc né vật cản.
-    #     """
-    #     start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
-    #     goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
+    def find_path_and_or_search(self, target_pos):
+        """
+        Tìm đường đi sử dụng ý tưởng AND-OR (giống như BFS với di chuyển đơn và kép).
+        Trả về đường đi tối ưu (ít hành động nhất) hoặc né vật cản.
+        """
+        start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
+        goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
 
-    #     if self.is_obstacle(goal):
-    #         return self.avoid_obstacle()
+        if self.is_obstacle(goal):
+            return self.avoid_obstacle()
 
-    #     from collections import deque
+        queue = deque([start])
+        came_from = {start: None}
+        visited = set([start])
+        max_iterations = 4000
+        iterations = 0
 
-    #     queue = deque([start])
-    #     came_from = {start: None}
-    #     visited = set([start])
-    #     max_iterations = 4000
-    #     iterations = 0
+        def get_extended_neighbors(pos):
+            """Tạo hàng xóm với bước đơn và kép"""
+            neighbors = set()
+            directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+            x, y = pos
 
-    #     def get_extended_neighbors(pos):
-    #         """Tạo hàng xóm với bước đơn và kép"""
-    #         neighbors = set()
-    #         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    #         x, y = pos
+            # --- Bước đơn ---
+            intermediates = []
+            for dx, dy in directions:
+                nx, ny = x + dx, y + dy
+                if not self.is_obstacle((nx, ny)):
+                    neighbors.add((nx, ny))
+                    intermediates.append((nx, ny))
 
-    #         # --- Bước đơn ---
-    #         intermediates = []
-    #         for dx, dy in directions:
-    #             nx, ny = x + dx, y + dy
-    #             if not self.is_obstacle((nx, ny)):
-    #                 neighbors.add((nx, ny))
-    #                 intermediates.append((nx, ny))
+            # --- Bước kép ---
+            for ix, iy in intermediates:
+                for dx, dy in directions:
+                    nx2, ny2 = ix + dx, iy + dy
+                    if (nx2, ny2) != pos and not self.is_obstacle((nx2, ny2)):
+                        neighbors.add((nx2, ny2))
 
-    #         # --- Bước kép ---
-    #         for ix, iy in intermediates:
-    #             for dx, dy in directions:
-    #                 nx2, ny2 = ix + dx, iy + dy
-    #                 if (nx2, ny2) != pos and not self.is_obstacle((nx2, ny2)):
-    #                     neighbors.add((nx2, ny2))
+            return neighbors
 
-    #         return neighbors
+        while queue and iterations < max_iterations:
+            iterations += 1
+            current = queue.popleft()
 
-    #     while queue and iterations < max_iterations:
-    #         iterations += 1
-    #         current = queue.popleft()
+            if current == goal:
+                break
 
-    #         if current == goal:
-    #             break
+            for neighbor in get_extended_neighbors(current):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    came_from[neighbor] = current
+                    queue.append(neighbor)
 
-    #         for neighbor in get_extended_neighbors(current):
-    #             if neighbor not in visited:
-    #                 visited.add(neighbor)
-    #                 came_from[neighbor] = current
-    #                 queue.append(neighbor)
+        # Khôi phục đường đi nếu tìm thấy
+        if goal in came_from:
+            path = []
+            curr = goal
+            while curr != start:
+                path.append(curr)
+                curr = came_from[curr]
+            path.reverse()
+            return [(x * tile_size, y * tile_size) for x, y in path]
 
-    #     # Khôi phục đường đi nếu tìm thấy
-    #     if goal in came_from:
-    #         path = []
-    #         curr = goal
-    #         while curr != start:
-    #             path.append(curr)
-    #             curr = came_from[curr]
-    #         path.reverse()
-    #         return [(x * tile_size, y * tile_size) for x, y in path]
-
-    #     return self.avoid_obstacle()
+        return self.avoid_obstacle()
 
     def find_path_and_or_search(self, target_pos):
         start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
@@ -387,52 +385,42 @@ class Pet(Entity):
 
     def move_towards(self, target_pos):
         tx, ty = target_pos
-
-        if len(self.path) < 9:
-            if self.target == self.player:
-                ty = self.player.rect.centery  # Y offset cho player
+        
+        # If close to player, adjust y position
+        if self.target == self.player and len(self.path) < 9:
+            ty = self.player.rect.centery
 
         dx = tx - self.rect.centerx
         dy = ty - self.rect.centery
-
+        
+        # Calculate normalized direction
         dist = max(1, (dx**2 + dy**2)**0.5)
         dx /= dist
         dy /= dist
 
-        # Ensure equal velocity in both directions
-        self.x_vel = dx * vel
-        self.is_running = abs(dx) > 0.1  # Set running state based on horizontal movement
-        
-        if len(self.path) < 7:
-            self.y_vel = dy * vel
-        else:
-            future_x = self.rect.centerx + dx * tile_size
-            future_y = self.rect.centery + dy * tile_size
-            above_pos = (int(self.rect.centerx/tile_size), int(self.rect.centery/tile_size - 1))
-            
-            # Nếu có vật cản phía trước hoặc phía trên, thử các đường đi thay thế
-            if self.is_obstacle((int(future_x/tile_size), int(future_y/tile_size))):
-                if self.is_obstacle(above_pos):
-                    # Nếu có vật cản cả phía trước và phía trên, thử đi xuống
-                    self.y_vel = vel * 2.9
-                    self.x_vel = 0
-                else:
-                    # Nếu không, quay ngược lại
-                    self.x_vel = -dx * vel * 2
-                    self.y_vel = -dy * vel * 2
-                # Thử tìm 1 hướng mới
-                self.find_target()
-            else:
-                self.x_vel = dx * vel
-                self.y_vel = dy * vel
-
-        if abs(dx) > abs(dy):
-            self.direction = "right" if dx > 0 else "left"
-
-        # Kiểm tra xem Pet có gần đến vị trí đích không
-        if dist < tile_size // 2:
-            if self.path:
+        # Set velocities based on path length
+        if len(self.path) > 0:
+            next_point = self.path[0]
+            if abs(self.rect.centerx - next_point[0]) < vel and abs(self.rect.centery - next_point[1]) < vel:
                 self.path.pop(0)
+            else:
+                dx = next_point[0] - self.rect.centerx
+                dy = next_point[1] - self.rect.centery
+                dist = max(1, (dx**2 + dy**2)**0.5)
+                self.x_vel = (dx/dist) * vel
+                self.y_vel = (dy/dist) * vel
+
+        # Update running state and direction
+        self.is_running = abs(self.x_vel) > 0.1
+        if abs(self.x_vel) > abs(self.y_vel):
+            self.direction = "right" if self.x_vel > 0 else "left"
+
+        # Handle obstacles
+        future_x = self.rect.centerx + self.x_vel
+        future_y = self.rect.centery + self.y_vel
+        if self.is_obstacle((int(future_x/tile_size), int(future_y/tile_size))):
+            self.path = []  # Reset path if obstacle detected
+            self.find_target()  # Find new path
 
 
     # def distance_to(self, entity):
