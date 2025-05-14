@@ -118,6 +118,8 @@ class Pet(Entity):
             closest_enemy = None
             closest_distance = float('inf')
             for enemy in all_sprite_enemies:
+                if enemy.__class__.__name__ in ("Thorn", "Shark", "Chomper"):
+                    continue
                 distance = self.distance_to(enemy)
                 if distance < closest_distance:
                     closest_distance = distance
@@ -176,6 +178,73 @@ class Pet(Entity):
             return [(pos[0] * tile_size, pos[1] * tile_size) for pos in path]
         
         return self.avoid_obstacle()
+
+    # def find_path_and_or_search(self, target_pos):
+    #     """
+    #     Tìm đường đi sử dụng ý tưởng AND-OR (giống như BFS với di chuyển đơn và kép).
+    #     Trả về đường đi tối ưu (ít hành động nhất) hoặc né vật cản.
+    #     """
+    #     start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
+    #     goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
+
+    #     if self.is_obstacle(goal):
+    #         return self.avoid_obstacle()
+
+    #     from collections import deque
+
+    #     queue = deque([start])
+    #     came_from = {start: None}
+    #     visited = set([start])
+    #     max_iterations = 4000
+    #     iterations = 0
+
+    #     def get_extended_neighbors(pos):
+    #         """Tạo hàng xóm với bước đơn và kép"""
+    #         neighbors = set()
+    #         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    #         x, y = pos
+
+    #         # --- Bước đơn ---
+    #         intermediates = []
+    #         for dx, dy in directions:
+    #             nx, ny = x + dx, y + dy
+    #             if not self.is_obstacle((nx, ny)):
+    #                 neighbors.add((nx, ny))
+    #                 intermediates.append((nx, ny))
+
+    #         # --- Bước kép ---
+    #         for ix, iy in intermediates:
+    #             for dx, dy in directions:
+    #                 nx2, ny2 = ix + dx, iy + dy
+    #                 if (nx2, ny2) != pos and not self.is_obstacle((nx2, ny2)):
+    #                     neighbors.add((nx2, ny2))
+
+    #         return neighbors
+
+    #     while queue and iterations < max_iterations:
+    #         iterations += 1
+    #         current = queue.popleft()
+
+    #         if current == goal:
+    #             break
+
+    #         for neighbor in get_extended_neighbors(current):
+    #             if neighbor not in visited:
+    #                 visited.add(neighbor)
+    #                 came_from[neighbor] = current
+    #                 queue.append(neighbor)
+
+    #     # Khôi phục đường đi nếu tìm thấy
+    #     if goal in came_from:
+    #         path = []
+    #         curr = goal
+    #         while curr != start:
+    #             path.append(curr)
+    #             curr = came_from[curr]
+    #         path.reverse()
+    #         return [(x * tile_size, y * tile_size) for x, y in path]
+
+    #     return self.avoid_obstacle()
 
     def find_path_and_or_search(self, target_pos):
         start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)

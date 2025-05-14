@@ -235,7 +235,7 @@ def draw():
         for x, y in pet.path:
             rect = pygame.Rect(x, y, tile_size, tile_size)
             screen_rect = rect.move(camera.camera.topleft)
-            # pygame.draw.rect(screen, 'lightblue', screen_rect)
+            pygame.draw.rect(screen, 'lightblue', screen_rect)
             
         for x, y in enemy.path:
             rect = pygame.Rect(x, y, tile_size, tile_size)
