@@ -158,14 +158,16 @@ class Player(Entity):
         if self.action.startswith("Attack"):
             DELAY = self.ATTACK_DELAY
         
-        if (self.action == "Run" or self.action == "Jump") and self.is_hurt:
-            self.action = "Hurt"
-        
         if self.action == "Attack" and self.is_hurt:
             self.action = "Attack"
         if self.action == "Attackk" and self.is_hurt:
             self.action = "Attackk"
-        
+
+        if self.action == "Jump" and self.is_hurt:
+            self.animation_count = 0
+            self.action = "Jump"
+            self.is_hurt = False
+
         sprites = self.SPRITES[self.action]
         sprite_index = (self.animation_count // DELAY) % len(sprites)
         

@@ -26,11 +26,11 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 
 pygame.display.set_caption('name_game')
 
-x_player = tile_size*47#123
+x_player = tile_size*0#123
 y_player = tile_size*5
-x_enemy = tile_size*123
+x_enemy = tile_size*0
 y_enemy = tile_size*5
-x_pet = tile_size*51#123
+x_pet = tile_size*0#123
 y_pet = tile_size*5
 x_enemyboss = tile_size*68
 y_enemyboss = tile_size*5 
@@ -80,7 +80,7 @@ upgrade_button = Button(tile_size*10.5,tile_size*12,tile_size*11,tile_size*2,f"G
 
 
 
-level = 1
+level = 0
 levels = [0,1,2]
 score = 0
 total_score = 60
