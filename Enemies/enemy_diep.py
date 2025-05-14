@@ -209,106 +209,112 @@ class Enemy(Entity):
                 player.game_over = True
 
     def update(self, tiles, player):
-        # Áp dụng trọng lực
         if self.current_action == "death1":
             self.update_sprite()
             return
-        # Áp dụng trọng lực
+
+        # Apply gravity
         self.y_vel += min(1, (self.fall_count / FPS) * self.GRAVITY)
         self.fall_count += 1
 
+        # Reset velocity
+        self.x_vel = 0
+
+        # Check distance to player
         distance_x = abs(self.rect.centerx - player.rect.centerx)
         distance_y = abs(self.rect.centery - player.rect.centery)
-        attack_range = tile_size * 3
-        attack_rangey = tile_size * 3
+        attack_range = 90
 
-        if distance_x <= attack_range and distance_y <= attack_rangey:
-            # self.x_vel = 0
-            player_x = player.rect.centerx
-            boss_x = self.rect.centerx
-            self.direction = "left" if player_x < boss_x else "right"
-            if self.current_action != "Attack":
-                self.current_action = "Attack"
-                self.current_frame = 0
-                self.attack_frame_counter = 0
-            if self.current_frame >= len(self.SPRITES["Attack"]) - 1:
-                if self.time_to_attack == 0:
-                    self.attack_player(player)
-                    self.time_to_attack = FPS // 2
-            if self.time_to_attack > 0:
-                self.time_to_attack -= 1
-        else:
-            #  # Luôn cập nhật path nếu player di chuyển xa khỏi đích cũ
-            # need_new_path = (
-            #     not self.path or
-            #     abs(self.path[-1][0] - player.rect.centerx) > tile_size or
-            #     abs(self.path[-1][1] - player.rect.centery) > tile_size
-            # )
-            # if need_new_path:
-            self.find_path(player.rect.center, tiles) 
-            # Áp dụng thuật toán AI khi chọn nút
-            if self.selected_algo in [EnemyPathAlgo.ASTAR, EnemyPathAlgo.SAHC, EnemyPathAlgo.Q_LEARNING]:
-                if not self.path:
-                    self.find_path(player.rect.center, tiles)
-                if self.path:
-                    next_pos = self.path[0]
-                    if abs(self.rect.centerx - next_pos[0]) < 5 and abs(self.rect.centery - next_pos[1]) < 5:
-                        self.path.pop(0)
-                        if self.path:
-                            next_pos = self.path[0]
-                        else:
-                            next_pos = (self.rect.centerx, self.rect.centery)
-                    if next_pos[0] <= self.rect.centerx:
-                        dx = next_pos[0] - self.rect.centerx + 17
-                    elif next_pos[0] >= self.rect.centerx:
-                        dx = next_pos[0] - self.rect.centerx + 4
-                    
-                    if dx > 0:
-                        self.direction = "right"
-                        self.x_vel = self.vel1
-                    elif dx < 0:
-                        self.direction = "left"
-                        self.x_vel = -self.vel1
-                    else:
-                        self.x_vel = 0
-                    if self.check_wall_collision(tiles, self.x_vel):
-                        if self.on_ground(tiles):
-                            self.y_vel = -10
-                            if self.direction == "left":
-                                self.x_vel = -self.vel1
-                            else:
-                                self.x_vel = self.vel1
-                    if self.check_edge(tiles, 1 if self.x_vel > 0 else -1):
-                        if self.on_ground(tiles):
-                            self.y_vel = -10
-                            if self.direction == "left":
-                                self.x_vel = -self.vel1
-                            else:
-                                self.x_vel = self.vel1
-                    self.current_action = "Run"
-                else:
-                    self.current_action = "Idle"
-                    #self.patrol(tiles)
-            else:
-                self.current_action = "Run"
-                #self.patrol(tiles)
-
+        # Handle death
         if self.health <= 0 and self.current_action != "death1":
             self.current_action = "death1"
             self.current_frame = 0
-            self.x_vel = 0
-            self.y_vel = 0
+            self.x_vel = self.y_vel = 0
+            self.move(self.x_vel, self.y_vel, tiles)
+            self.update_sprite()
+            return
 
+        # Handle player game over
         if player.game_over:
-            self.rect.topleft = (self.x, self.y)
-            self.x_vel = 0
-            self.y_vel = 0
-            self.current_action = "Idle"
-            self.current_frame = 0
-            self.health = self.health_max
+            self.reset_state()
+            return
 
+        # Attack mode
+        if distance_x <= attack_range and distance_y <= attack_range:
+            self.handle_attack_mode(player)
+        # Movement mode
+        else:
+            self.handle_movement_mode(player, tiles)
+
+        # Apply movement and update sprite
         self.move(self.x_vel, self.y_vel, tiles)
         self.update_sprite()
+
+    def handle_attack_mode(self, player):
+        self.direction = "left" if player.rect.centerx < self.rect.centerx else "right"
+        
+        if self.current_action != "Attack":
+            self.current_action = "Attack"
+            self.current_frame = 0
+            self.attack_frame_counter = 0
+
+        if self.current_frame >= len(self.SPRITES["Attack"]) - 1:
+            if self.time_to_attack == 0:
+                self.attack_player(player)
+                self.time_to_attack = FPS // 2
+
+        if self.time_to_attack > 0:
+            self.time_to_attack -= 1
+
+    def handle_movement_mode(self, player, tiles):
+        if self.selected_algo in [EnemyPathAlgo.ASTAR, EnemyPathAlgo.SAHC, EnemyPathAlgo.Q_LEARNING]:
+            # Update path if needed
+            if not self.path or self.should_update_path(player):
+                self.find_path(player.rect.center, tiles)
+
+            if self.path:
+                self.follow_path(tiles)
+            else:
+                self.current_action = "Idle"
+        else:
+            self.patrol(tiles)
+
+    def should_update_path(self, player):
+        if not self.path:
+            return True
+        target_pos = self.path[-1]
+        return (abs(target_pos[0] - player.rect.centerx) > tile_size or 
+                abs(target_pos[1] - player.rect.centery) > tile_size)
+
+    def follow_path(self, tiles):
+        next_pos = self.path[0]
+        
+        # Check if reached current waypoint
+        if abs(self.rect.centerx - next_pos[0]) < 100 and abs(self.rect.centery - next_pos[1]) < 100:
+            self.path.pop(0)
+            if not self.path:
+                self.current_action = "Idle"
+                return
+            next_pos = self.path[0]
+
+        # Calculate movement
+        dx = next_pos[0] - self.rect.centerx
+        self.direction = "right" if dx > 0 else "left"
+        self.x_vel = self.vel1 if dx > 0 else -self.vel1
+
+        # Handle obstacles
+        if self.check_wall_collision(tiles, self.x_vel) or self.check_edge(tiles, 1 if dx > 0 else -1):
+            if self.on_ground(tiles):
+                self.y_vel = -10
+
+        self.current_action = "Run"
+
+    def reset_state(self):
+        self.rect.topleft = (self.x, self.y)
+        self.x_vel = self.y_vel = 0
+        self.current_action = "Idle"
+        self.current_frame = 0
+        self.health = self.health_max
         
     def on_ground(self, tiles):
         self.rect.y += 1
@@ -356,7 +362,7 @@ class Enemy(Entity):
 
     def check_wall_collision(self, tiles, x_offset):
         """Kiểm tra xem kẻ địch có bị kẹt vào tường không"""
-        future_rect = self.rect.move(x_offset, 0)
+        future_rect = self.rect.move(x_offset*1.2, tile_size)
         for tile in tiles:
             if future_rect.colliderect(tile.rect):
                 return True
@@ -364,13 +370,20 @@ class Enemy(Entity):
 
     def check_edge(self, tiles, direction):
         """Kiểm tra nếu kẻ địch sắp bước vào hố"""
-        x_check = self.rect.centerx + (direction * tile_size // 2)
-        y_check = self.rect.bottom + 5  # Kiểm tra phía trước chân
+        # Check point in front of enemy
+        check_distance = tile_size * 1.5
+        x_check = self.rect.centerx + (direction * check_distance)
+        y_check = self.rect.bottom + 5
 
+        # Kiểm tra có đất phía dưới điểm check không
+        found_ground = False
         for tile in tiles:
-            if tile.rect.collidepoint(x_check, y_check):  # Có nền đất phía trước
-                return False  
-        return True  # Nếu không có nền đất, tức là hố, cần quay đầu
+            if tile.rect.collidepoint(x_check, y_check):
+                found_ground = True
+                break
+
+        # Trả về True nếu không có đất (tức là có hố)
+        return not found_ground
 
     def patrol(self, tiles):
         """Kẻ địch di chuyển tuần tra khi không thấy nhân vật"""
@@ -378,13 +391,13 @@ class Enemy(Entity):
 
         if self.direction == "left":
             self.x_vel = -self.vel1
-            if self.rect.x <= self.patrol_left or self.check_wall_collision(tiles, -self.vel) or self.check_edge(tiles, -1):
+            if self.rect.x <= self.patrol_left or self.check_wall_collision(tiles, -self.vel1) or self.check_edge(tiles, -1):
                 self.direction = "right"
                 self.x_vel = +self.vel1
  
         elif self.direction == "right":
             self.x_vel = +self.vel1
-            if self.rect.x >= self.patrol_right or self.check_wall_collision(tiles, self.vel) or self.check_edge(tiles, 1):
+            if self.rect.x >= self.patrol_right or self.check_wall_collision(tiles, self.vel1) or self.check_edge(tiles, 1):
                 self.direction = "left"
                 self.x_vel = -self.vel1
         

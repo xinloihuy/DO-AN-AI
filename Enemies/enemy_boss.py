@@ -23,74 +23,63 @@ class EnemyBoss(Enemy):
         self.attack_frame_delay = 3  # Giảm tốc độ frame khi chém
 
     def update(self, tiles, player):
-        # Áp dụng trọng lực
+        attack_range = 150
         if self.current_action == "death1":
             self.update_sprite()
             return
-        
+
+        # Apply gravity
         self.y_vel += min(1, (self.fall_count / FPS) * self.GRAVITY)
         self.fall_count += 1
 
+        # Reset velocity
+        self.x_vel = 0
+
+        # Check distance to player
         distance_x = abs(self.rect.centerx - player.rect.centerx)
         distance_y = abs(self.rect.centery - player.rect.centery)
-        attack_range = 150  # Phạm vi tấn công (50 pixel)
-        attack_rangey = 90
+        attack_range = 150
 
-        # Kiểm tra nếu nhân vật trong phạm vi tấn công
-        if distance_x <= attack_range and distance_y <= attack_rangey:
-            self.x_vel = 0
-
-            player_x = player.rect.centerx
-            boss_x = self.rect.centerx
-
-            if player_x < boss_x:
-                self.direction = "left"
-            else:
-                self.direction = "right"
-            
-            # Nếu chưa ở trạng thái Attack, bắt đầu chém
-            if self.current_action != "Attack":
-                self.current_action = "Attack"
-                self.current_frame = 0  # Reset frame về 0 khi bắt đầu chém
-                self.attack_frame_counter = 0  # Reset bộ đếm frame attack
-
-            # Khi hoàn thành animation chém, gây sát thương rồi chờ tiếp
-            if self.current_frame >= len(self.SPRITES["Attack"]) - 1:
-                if self.time_to_attack == 0:
-                    self.attack_player(player)
-                    self.time_to_attack = FPS // 2  # Delay trước khi chém tiếp
-
-            # Đếm thời gian giữa các đòn chém
-            if self.time_to_attack > 0:
-                self.time_to_attack -= 1  
-
-        else:
-            # Khi không va chạm, quay lại tuần tra
-            self.current_action = "Run"
-            self.patrol(tiles)
-            
+        # Handle death
         if self.health <= 0 and self.current_action != "death1":
             self.current_action = "death1"
             self.current_frame = 0
-            self.x_vel = 0
-            self.y_vel = 0
+            self.x_vel = self.y_vel = 0
+            self.move(self.x_vel, self.y_vel, tiles)
+            self.update_sprite()
+            return
 
-        # if self.health < 0:
-        #     self.rect.x = -1000
-        #     self.rect.y = -1000
-
+        # Handle player game over
         if player.game_over:
-            self.rect.topleft = (self.x, self.y)
-            self.x_vel = 0
-            self.y_vel = 0
-            self.current_action = "Idle"
-            self.current_frame = 0
-            self.health = self.health_max
-        
+            self.reset_state()
+            return
 
-        # Cập nhật vị trí và sprite
+        # Attack mode
+        if distance_x <= attack_range and distance_y <= attack_range:
+            self.handle_attack_mode(player)
+        # Movement mode
+        else:
+            self.handle_movement_mode(player, tiles)
+
+        # Apply movement and update sprite
         self.move(self.x_vel, self.y_vel, tiles)
         self.update_sprite()
+
+
+
+    def check_wall_collision(self, tiles, x_offset):
+        """Kiểm tra xem kẻ địch có bị kẹt vào tường không"""
+        future_rect = self.rect.copy()
+        future_rect.x += x_offset * 1.8
+        future_rect.height = tile_size *5
+        future_rect.width = tile_size * 5
+        
+        for tile in tiles:
+            if future_rect.colliderect(tile.rect):
+                if tile.rect.top < future_rect.bottom:
+                    return True
+        return False
+
 
     def load_sprite_sheets(self, scale_factor=2):
         base_path = r"assets/Enemy/Boss"
@@ -116,14 +105,6 @@ class EnemyBoss(Enemy):
                 all_sprites[action].append(image)
 
         return all_sprites
-
-    def check_wall_collision(self, tiles, x_offset):
-        future_rect = pygame.Rect(self.rect.x + x_offset, self.rect.y, 60, 80)  # Kích thước 60x80
-        for tile in tiles:
-            if future_rect.colliderect(tile.rect):
-                return True
-        return False
-
 
     def draw_health_bar2(self, screen, camera):
         """Vẽ thanh máu của Boss"""

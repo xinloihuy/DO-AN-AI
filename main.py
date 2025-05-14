@@ -23,17 +23,17 @@ from utils import*# upgrade_character,upgrade_logic,calculate_total_score
 pygame.init()
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode((screen_width, screen_height))
-
+background_music = pygame.mixer.Sound("assets/Sound_Effect/background.wav")
 pygame.display.set_caption('name_game')
-
+background_music.play(0)
 x_player = tile_size*0#123
 y_player = tile_size*5
-x_enemy = tile_size*0
+x_enemy = tile_size*30
 y_enemy = tile_size*5
 x_pet = tile_size*0#123
 y_pet = tile_size*5
 x_enemyboss = tile_size*68
-y_enemyboss = tile_size*5 
+y_enemyboss = tile_size*2
 x_shark = tile_size*22
 y_shark = tile_size*8
 x_shark1 = tile_size*48
@@ -43,18 +43,18 @@ y_shark2 = tile_size*8
 x_thorn = tile_size*3
 y_thorn = tile_size*7.7
 x_cayanthit = tile_size*80
-y_cayanthit = tile_size*4
+y_cayanthit = tile_size*5
 
 coordinate_enemy_level = [(tile_size*30,tile_size*5),(128*tile_size,7*tile_size),(tile_size*40,tile_size*5)]
 coordinate_enemyboss_level = [(70*tile_size,7*tile_size),(tile_size*40,tile_size*5),(tile_size*40,tile_size*5)]
 coordinate_shark_level = [
     [(tile_size*30, tile_size*5), (128*tile_size, 7*tile_size), (tile_size*40, tile_size*5)], 
     [(tile_size*22, tile_size*6), (tile_size*50, tile_size*7), (tile_size*60, tile_size*8)],
-    [(tile_size*10, tile_size*4), (tile_size*35, tile_size*6), (tile_size*55, tile_size*9)]
+    [(tile_size*18.5, tile_size*9), (tile_size*38, tile_size*7), (tile_size*55, tile_size*9)],
 ]
-coordinate_thorn_level = [(tile_size*30,tile_size*5),(128*tile_size,7*tile_size),(tile_size*40,tile_size*5)]
+coordinate_thorn_level = [(tile_size*30,tile_size*5),(128*tile_size,8.7*tile_size),(tile_size*40,tile_size*5)]
 
-coordinate_cayanthit_level = [(tile_size*30,tile_size*5),(128*tile_size,7*tile_size),(tile_size*40,tile_size*5)]
+coordinate_cayanthit_level = [(tile_size*30,tile_size*5),(43*tile_size,10*tile_size),(tile_size*40,tile_size*5)]
 
 i=3
 map = Map()
@@ -66,7 +66,7 @@ shark = Shark(x_shark, y_shark, scale=2)
 shark1 = Shark(x_shark1, y_shark1, scale=2)
 shark2 = Shark(x_shark2, y_shark2, scale=2)
 thorn = Thorn(x_thorn, y_thorn, scale = 1.3)
-cayanthit = Chomper(x_cayanthit, y_cayanthit, scale = 3)
+cayanthit = Chomper(x_cayanthit, y_cayanthit, scale = 2)
 
 
 camera = Camera(cols*tile_size,rows*tile_size)
@@ -80,7 +80,7 @@ upgrade_button = Button(tile_size*10.5,tile_size*12,tile_size*11,tile_size*2,f"G
 
 
 
-level = 0
+level = 2
 levels = [0,1,2]
 score = 0
 total_score = 60
@@ -94,36 +94,32 @@ def next_map():
     gold_group.empty()
     map = Map()
     random_level = random.randint(0,2)
-    # while True:
-    #     if random_level != level:
-    #         level = random_level
-    #         break
-    #     random_level = random.randint(0,2)
     level = (level + 1) % len(levels)
     map.load_csv(level)
     map.load_data()
     player = Player(0,7*tile_size,scale=1.5)
     pet = Pet(0,6*tile_size,scale=0.5,player=player,map=map)
     pos_enemy = coordinate_enemy_level[level]
-    pos_enemy = coordinate_enemy_level[0]
     x_enemy = pos_enemy[0]
     y_enemy = pos_enemy[1]
     
     x_enemyboss, y_enemyboss = coordinate_enemyboss_level[level]
     enemy = Enemy(x_enemy,y_enemy,scale=3)
-    
     boss = EnemyBoss(x_enemyboss, y_enemyboss, scale=5)
     
-    shark_positions = coordinate_shark_level[level]
-    shark = Shark(shark_positions[0][0], shark_positions[0][1], scale=2)
-    shark1 = Shark(shark_positions[1][0], shark_positions[1][1], scale=2)
-    shark2 = Shark(shark_positions[2][0], shark_positions[2][1], scale=2)
+    # Chỉ thêm cá mập vào level 0 và 2
+    if level in [0, 2]:
+        shark_positions = coordinate_shark_level[level]
+        shark = Shark(shark_positions[0][0], shark_positions[0][1], scale=2)
+        shark1 = Shark(shark_positions[1][0], shark_positions[1][1], scale=2)
+        shark2 = Shark(shark_positions[2][0], shark_positions[2][1], scale=2)
+        all_sprite_enemies.add(shark, shark1, shark2)
     
     x_thorn, y_thorn = coordinate_thorn_level[level]
-    thorn = Thorn(x_thorn, y_thorn, scale = 1.3)  
+    thorn = Thorn(x_thorn, y_thorn, scale=1.3)  
     
     all_sprite.add(player, pet)
-    all_sprite_enemies.add(enemy, boss, shark, shark1, shark2, thorn, cayanthit)
+    all_sprite_enemies.add(enemy, boss, thorn, cayanthit)
     
 def new(): 
     global score 
@@ -132,7 +128,7 @@ def new():
     score = 0
                 
 def reset_game():
-    global score, level, player, enemy, rocket, map, all_sprite, enemies_group, gold_group, all_sprite_enemies, pet, shark,shark1,shark2, boss, thorn, cayanthit
+    global score, level, player, enemy, rocket, map, all_sprite, enemies_group, gold_group, all_sprite_enemies, pet, shark, shark1, shark2, boss, thorn, cayanthit
 
     # Reset các đối tượng trong game
     all_sprite.empty()
@@ -150,32 +146,55 @@ def reset_game():
     for sprite in gold_group:
         sprite.kill()
 
-
+    # Reset trạng thái của người chơi và các đối tượng
     player.game_over = False
     rocket.rect.x = 0
     rocket.rect.y = 0
     player.rect.x = 0
-    player.rect.y = tile_size*7
+    player.rect.y = tile_size * 7
     player.health = player.health_max
     player.mana = player.mana_max
     pet.rect.x = 0
-    pet.rect.y = tile_size*6
+    pet.rect.y = tile_size * 6
 
     # Tạo lại map và các đối tượng
     map = Map()
-    map.load_csv(level) 
+    map.load_csv(level)
     map.load_data()
-    
+
     # Thêm các đối tượng vào nhóm sprite
     all_sprite.add(player)
     all_sprite.add(pet)
-    all_sprite_enemies.add(enemy, boss, shark, shark1, shark2, thorn)
+
+    # Thêm cá mập nếu ở level 0 hoặc 2
+    if level in [0, 2]:
+        shark_positions = coordinate_shark_level[level]
+        shark = Shark(shark_positions[0][0], shark_positions[0][1], scale=2)
+        shark1 = Shark(shark_positions[1][0], shark_positions[1][1], scale=2)
+        shark2 = Shark(shark_positions[2][0], shark_positions[2][1], scale=2)
+        all_sprite_enemies.add(shark, shark1, shark2)
+    if level == 1:
+        x_cayanthit, y_cayanthit = coordinate_cayanthit_level[level]
+        cayanthit = Chomper(x_cayanthit, y_cayanthit, scale=2)
+        all_sprite_enemies.add(cayanthit)
+
+    # Thêm các đối tượng khác
+    x_enemy, y_enemy = coordinate_enemy_level[level]
+    enemy = Enemy(x_enemy, y_enemy, scale=3)
+
+    x_enemyboss, y_enemyboss = coordinate_enemyboss_level[level]
+    boss = EnemyBoss(x_enemyboss, y_enemyboss, scale=5)
+
+    x_thorn, y_thorn = coordinate_thorn_level[level]
+    thorn = Thorn(x_thorn, y_thorn, scale=1.3)
+
+    all_sprite_enemies.add(enemy, boss, thorn, cayanthit)
     enemies_group.add(rocket)
 
     
 
 def update():
-   
+    
     player.update(map.obobstacle_coord)
     pet.update(map.obobstacle_coord)
     enemy.update(map.obobstacle_coord,player)
@@ -229,7 +248,6 @@ def draw():
                 enemy.handle_click(event.pos) 
 
         
-        
         for x, y in pet.path:
             rect = pygame.Rect(x, y, tile_size, tile_size)
             screen_rect = rect.move(camera.camera.topleft)
@@ -238,7 +256,12 @@ def draw():
         for x, y in enemy.path:
             rect = pygame.Rect(x, y, tile_size, tile_size)
             screen_rect = rect.move(camera.camera.topleft)
-            # pygame.draw.rect(screen, 'lightyellow', screen_rect)
+            pygame.draw.rect(screen, 'lightyellow', screen_rect)
+
+        for x, y in boss.path:
+            rect = pygame.Rect(x, y, tile_size, tile_size)
+            screen_rect = rect.move(camera.camera.topleft)
+            pygame.draw.rect(screen, 'lightyellow', screen_rect)
         
         for sprite in all_sprite:
             screen.blit(sprite.image, camera.apply(sprite))
@@ -246,7 +269,7 @@ def draw():
 
         for sprite in all_sprite_enemies: 
             screen.blit(sprite.image, camera.apply(sprite))
-            # pygame.draw.rect(screen, 'white', camera.apply(sprite), 1)
+            pygame.draw.rect(screen, 'white', camera.apply(sprite), 1)
         
         pet.draw_3_button(screen)
         enemy.draw_3_button(screen)
@@ -269,7 +292,7 @@ def draw():
         font = pygame.font.Font(None, 50)
         screen.blit(font.render(f"X {score}", True,"white"),(screen_width - tile_size*2,0))
           
-       # rocket.check_rocket(screen,player,100,camera,explosion)
+        # rocket.check_rocket(screen,player,100,camera,explosion)
         if player.rect.x >= 149.5*tile_size:
             next_map()
             
