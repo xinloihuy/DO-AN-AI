@@ -228,9 +228,7 @@ def draw():
                 pet.handle_click(event.pos)  # Gọi xử lý click
                 enemy.handle_click(event.pos) 
 
-        for sprite in all_sprite:
-            screen.blit(sprite.image, camera.apply(sprite))
-            # pygame.draw.rect(screen,'white',camera.apply(sprite),1)
+        
         
         for x, y in pet.path:
             rect = pygame.Rect(x, y, tile_size, tile_size)
@@ -241,6 +239,10 @@ def draw():
             rect = pygame.Rect(x, y, tile_size, tile_size)
             screen_rect = rect.move(camera.camera.topleft)
             # pygame.draw.rect(screen, 'lightyellow', screen_rect)
+        
+        for sprite in all_sprite:
+            screen.blit(sprite.image, camera.apply(sprite))
+            # pygame.draw.rect(screen,'white',camera.apply(sprite),1)
 
         for sprite in all_sprite_enemies: 
             screen.blit(sprite.image, camera.apply(sprite))
