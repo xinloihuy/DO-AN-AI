@@ -26,11 +26,11 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 
 pygame.display.set_caption('name_game')
 
-x_player = tile_size*123
+x_player = tile_size*47#123
 y_player = tile_size*5
 x_enemy = tile_size*123
 y_enemy = tile_size*5
-x_pet = tile_size*123
+x_pet = tile_size*51#123
 y_pet = tile_size*5
 x_enemyboss = tile_size*68
 y_enemyboss = tile_size*5 
@@ -80,7 +80,7 @@ upgrade_button = Button(tile_size*10.5,tile_size*12,tile_size*11,tile_size*2,f"G
 
 
 
-level = 0
+level = 1
 levels = [0,1,2]
 score = 0
 total_score = 60
@@ -109,8 +109,6 @@ def next_map():
     x_enemy = pos_enemy[0]
     y_enemy = pos_enemy[1]
     
-    
-
     x_enemyboss, y_enemyboss = coordinate_enemyboss_level[level]
     enemy = Enemy(x_enemy,y_enemy,scale=3)
     
@@ -163,13 +161,10 @@ def reset_game():
     pet.rect.x = 0
     pet.rect.y = tile_size*6
 
-
     # Tạo lại map và các đối tượng
     map = Map()
     map.load_csv(level) 
     map.load_data()
-    
-    
     
     # Thêm các đối tượng vào nhóm sprite
     all_sprite.add(player)
@@ -192,6 +187,9 @@ def update():
     cayanthit.update(player)
     camera.update(player)
     
+    if level == 1:
+        for tile in map.animated_tiles:
+            tile.update(dt)
 
 
       
@@ -204,9 +202,18 @@ def draw():
             screen.blit(img_sunset,(0,0))   
             screen.blit(img_wave,(0,12*tile_size-img_wave.get_height())) 
         else:
-            for i in range(0,1):
-                screen.blit(img_mountains1,(i*50*tile_size,0))
-                screen.blit(img_mountains2,(i*50*tile_size,0))
+            mountains_width = img_mountains1.get_width()
+            num_repeat = int(round(150*tile_size // mountains_width)) + 1 
+            for i in range(num_repeat):
+                x_pos = i*mountains_width
+                screen_pos = camera.apply_position((x_pos,0))
+                screen.blit(img_mountains1, screen_pos)  
+                screen.blit(img_mountains2, screen_pos)   
+            
+            # for i in range(0,1):
+            #     screen.blit(img_mountains1,(i*50*tile_size,0))
+            #     screen.blit(img_mountains2,(i*50*tile_size,0))
+                
             # screen.blit(img_mountains1,(camera.x,0))
             # screen.blit(img_mountains2,(camera.x,0))  
 
@@ -277,9 +284,8 @@ def draw():
             pass
     
     if player.player_update == True and upgrade_button.is_pressed()== False:
-
         
-        total_score_xpox = round(math.log(total_score,10) + 28)*tile_size if score != 0 else 28*tile_size
+        total_score_xpox = round(math.log(total_score,10) + 26)*tile_size if score != 0 else 28*tile_size
         upgrade_character(screen,player, total_score,total_score_xpox )
         upgrade_logic(player,total_score)
         total_score = calculate_total_score()
@@ -291,9 +297,11 @@ run = True
 new() 
 while run:
     dt = clock.tick(FPS)
+    #all_sprite.update(dt)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
+
      
     update()
     draw()
