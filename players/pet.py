@@ -28,7 +28,7 @@ class Pet(Entity):
         self.attack_cooldown = 0
 
         global vel
-        vel = 3.5
+        vel = 4.5
         self.is_running = False
 
         self.player = player

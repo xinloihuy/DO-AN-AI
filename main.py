@@ -24,8 +24,8 @@ pygame.init()
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode((screen_width, screen_height))
 background_music = pygame.mixer.Sound("assets/Sound_Effect/background.wav")
+background_music.set_volume(0.1)
 pygame.display.set_caption('name_game')
-background_music.play(0)
 x_player = tile_size*0#123
 y_player = tile_size*5
 x_enemy = tile_size*30
@@ -33,7 +33,7 @@ y_enemy = tile_size*5
 x_pet = tile_size*0#123
 y_pet = tile_size*5
 x_enemyboss = tile_size*68
-y_enemyboss = tile_size*2
+y_enemyboss = tile_size*1
 x_shark = tile_size*22
 y_shark = tile_size*8
 x_shark1 = tile_size*48
@@ -46,15 +46,15 @@ x_cayanthit = tile_size*80
 y_cayanthit = tile_size*5
 
 coordinate_enemy_level = [(tile_size*30,tile_size*5),(128*tile_size,7*tile_size),(tile_size*40,tile_size*5)]
-coordinate_enemyboss_level = [(70*tile_size,7*tile_size),(tile_size*40,tile_size*5),(tile_size*40,tile_size*5)]
+coordinate_enemyboss_level = [(68*tile_size,2*tile_size),(tile_size*40,tile_size*5),(tile_size*40,tile_size*5)]
 coordinate_shark_level = [
-    [(tile_size*30, tile_size*5), (128*tile_size, 7*tile_size), (tile_size*40, tile_size*5)], 
+    [(tile_size*22, tile_size*8), (48*tile_size, 8*tile_size), (tile_size*61, tile_size*8)], 
     [(tile_size*22, tile_size*6), (tile_size*50, tile_size*7), (tile_size*60, tile_size*8)],
-    [(tile_size*18.5, tile_size*9), (tile_size*38, tile_size*7), (tile_size*55, tile_size*9)],
+    [(tile_size*18.5, tile_size*9), (tile_size*38, tile_size*7), (tile_size*58, tile_size*9)],
 ]
-coordinate_thorn_level = [(tile_size*30,tile_size*5),(128*tile_size,8.7*tile_size),(tile_size*40,tile_size*5)]
+coordinate_thorn_level = [(tile_size*3,tile_size*7.7),(128*tile_size,8.7*tile_size),(tile_size*35,tile_size*7.8)]
 
-coordinate_cayanthit_level = [(tile_size*30,tile_size*5),(43*tile_size,10*tile_size),(tile_size*40,tile_size*5)]
+coordinate_cayanthit_level = [(tile_size*80,tile_size*5),(43*tile_size,10*tile_size),(tile_size*70,tile_size*6)]
 
 i=3
 map = Map()
@@ -118,6 +118,9 @@ def next_map():
     x_thorn, y_thorn = coordinate_thorn_level[level]
     thorn = Thorn(x_thorn, y_thorn, scale=1.3)  
     
+    x_cayanthit, y_cayanthit = coordinate_cayanthit_level[level]
+    cayanthit = Chomper(x_cayanthit, y_cayanthit, scale=2)
+    
     all_sprite.add(player, pet)
     all_sprite_enemies.add(enemy, boss, thorn, cayanthit)
     
@@ -148,7 +151,7 @@ def reset_game():
 
     # Reset trạng thái của người chơi và các đối tượng
     player.game_over = False
-    rocket.rect.x = 0
+    rocket.rect.x = 0 
     rocket.rect.y = 0
     player.rect.x = 0
     player.rect.y = tile_size * 7
@@ -172,27 +175,25 @@ def reset_game():
         shark = Shark(shark_positions[0][0], shark_positions[0][1], scale=2)
         shark1 = Shark(shark_positions[1][0], shark_positions[1][1], scale=2)
         shark2 = Shark(shark_positions[2][0], shark_positions[2][1], scale=2)
-        all_sprite_enemies.add(shark, shark1, shark2)
-    if level == 1:
-        x_cayanthit, y_cayanthit = coordinate_cayanthit_level[level]
-        cayanthit = Chomper(x_cayanthit, y_cayanthit, scale=2)
-        all_sprite_enemies.add(cayanthit)
+        all_sprite_enemies.add(shark)
 
     # Thêm các đối tượng khác
     x_enemy, y_enemy = coordinate_enemy_level[level]
     enemy = Enemy(x_enemy, y_enemy, scale=3)
 
     x_enemyboss, y_enemyboss = coordinate_enemyboss_level[level]
-    boss = EnemyBoss(x_enemyboss, y_enemyboss, scale=5)
+    boss = EnemyBoss(x_enemyboss, y_enemyboss//2, scale=5)
 
     x_thorn, y_thorn = coordinate_thorn_level[level]
     thorn = Thorn(x_thorn, y_thorn, scale=1.3)
+    
+    x_cayanthit, y_cayanthit = coordinate_cayanthit_level[level]
+    cayanthit = Chomper(x_cayanthit, y_cayanthit, scale=2)
 
     all_sprite_enemies.add(enemy, boss, thorn, cayanthit)
     enemies_group.add(rocket)
 
     
-
 def update():
     
     player.update(map.obobstacle_coord)
@@ -317,7 +318,8 @@ def draw():
 
 
     pygame.display.flip()
-    
+
+background_music.play(-1)
 run = True
 new() 
 while run:

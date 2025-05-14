@@ -45,6 +45,7 @@ class Enemy(Entity):
         self.attack_frame_counter = 0  # Bộ đếm frame của animation chém
         
         self.selected_algo = EnemyPathAlgo.ASTAR
+        Enemy.current_algorithm = EnemyPathAlgo.ASTAR
         self.font = pygame.font.SysFont("Courier New", 20)
         self.buttons = {
             EnemyPathAlgo.ASTAR: pygame.Rect(tile_size*10, tile_size*2, 120, 30),
@@ -65,6 +66,7 @@ class Enemy(Entity):
     def handle_click(self, pos):
         for algo, rect in self.buttons.items():
             if rect.collidepoint(pos):
+                Enemy.current_algorithm = algo
                 self.selected_algo = algo
 
     def find_path_astar(self, target_pos, tiles):
@@ -99,55 +101,136 @@ class Enemy(Entity):
     def heuristic(self, a, b):
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
+    # def find_path_sahc(self, target_pos, tiles):
+    #     start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
+    #     goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
+    #     current = start
+    #     path = [current]
+    #     visited = set()
+    #     max_steps = 100
+    #     for _ in range(max_steps):
+    #         if current == goal:
+    #             break
+    #         neighbors = [n for n in self.get_neighbors(current, tiles) if n not in visited]
+    #         if not neighbors:
+    #             break
+    #         next_node = min(neighbors, key=lambda n: self.heuristic(n, goal))
+    #         if self.heuristic(next_node, goal) >= self.heuristic(current, goal):
+    #             break
+    #         current = next_node
+    #         path.append(current)
+    #         visited.add(current)
+    #     if current == goal:
+    #         return [(pos[0] * tile_size, pos[1] * tile_size) for pos in path]
+    #     return []
+
+    # def find_path_q_learning(self, target_pos, tiles):
+    #     start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
+    #     goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
+    #     current = start
+    #     path = [current]
+    #     visited = set()
+    #     max_steps = 100
+    #     for _ in range(max_steps):
+    #         if current == goal:
+    #             break
+    #         neighbors = [n for n in self.get_neighbors(current, tiles) if n not in visited]
+    #         if not neighbors:
+    #             break
+    #         current = random.choice(neighbors)
+    #         path.append(current)
+    #         visited.add(current)
+    #     if current == goal:
+    #         return [(pos[0] * tile_size, pos[1] * tile_size) for pos in path]
+    #     return []
+    
     def find_path_sahc(self, target_pos, tiles):
         start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
         goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
         current = start
         path = [current]
-        visited = set()
-        max_steps = 100
-        for _ in range(max_steps):
-            if current == goal:
-                break
-            neighbors = [n for n in self.get_neighbors(current, tiles) if n not in visited]
+        
+        while current != goal:
+            # Lấy các node lân cận
+            neighbors = self.get_neighbors(current, tiles)
             if not neighbors:
                 break
-            next_node = min(neighbors, key=lambda n: self.heuristic(n, goal))
-            if self.heuristic(next_node, goal) >= self.heuristic(current, goal):
+                
+            # Tìm node lân cận tốt nhất
+            current_score = self.heuristic(current, goal)
+            best_neighbor = None
+            best_score = float('inf')
+            
+            for neighbor in neighbors:
+                score = self.heuristic(neighbor, goal)
+                if score < best_score:
+                    best_score = score
+                    best_neighbor = neighbor
+                    
+            # Nếu không tìm được node tốt hơn, ta đã ở cực đại địa phương
+            if best_score >= current_score:
                 break
-            current = next_node
+                
+            current = best_neighbor
             path.append(current)
-            visited.add(current)
-        if current == goal:
-            return [(pos[0] * tile_size, pos[1] * tile_size) for pos in path]
-        return []
-
+            
+        return [(pos[0] * tile_size, pos[1] * tile_size) for pos in path]
+    
     def find_path_q_learning(self, target_pos, tiles):
         start = (self.rect.centerx // tile_size, self.rect.centery // tile_size)
         goal = (target_pos[0] // tile_size, target_pos[1] // tile_size)
+        
+        # Khởi tạo Q-table nếu chưa có
+        if not hasattr(self, 'q_table'):
+            self.q_table = {}
+        
+        # Các tham số
+        alpha = 0.1  # Tỷ lệ học
+        gamma = 0.9  # Hệ số giảm
+        epsilon = 0.2  # Tăng tỷ lệ khám phá lên để đa dạng hơn
+        
         current = start
         path = [current]
-        visited = set()
-        max_steps = 100
+        visited = set([current])
+        max_steps = 50  # Giảm số bước để tránh đường đi quá dài
+        
         for _ in range(max_steps):
             if current == goal:
                 break
+                
+            # Lấy các node lân cận chưa thăm
             neighbors = [n for n in self.get_neighbors(current, tiles) if n not in visited]
             if not neighbors:
                 break
-            current = random.choice(neighbors)
+                
+            # Khởi tạo Q-values cho trạng thái hiện tại
+            if current not in self.q_table:
+                self.q_table[current] = {n: 0 for n in neighbors}
+                
+            # Chọn hành động theo epsilon-greedy
+            if random.random() < epsilon:
+                next_state = random.choice(neighbors)
+            else:
+                # Ưu tiên di chuyển về phía goal
+                next_state = min(neighbors, key=lambda n: self.heuristic(n, goal))
+                    
+            # Cập nhật path và các trạng thái đã thăm
+            current = next_state
             path.append(current)
             visited.add(current)
-        if current == goal:
-            return [(pos[0] * tile_size, pos[1] * tile_size) for pos in path]
-        return []
+            
+            # Thoát sớm nếu đủ gần goal
+            if self.heuristic(current, goal) <= 2:
+                break
+                
+        return [(pos[0] * tile_size, pos[1] * tile_size) for pos in path]
 
     def find_path(self, target_pos, tiles):
-        if self.selected_algo == EnemyPathAlgo.ASTAR:
+        if Enemy.current_algorithm == EnemyPathAlgo.ASTAR:
             self.path = self.find_path_astar(target_pos, tiles)
-        elif self.selected_algo == EnemyPathAlgo.SAHC:
+        elif Enemy.current_algorithm == EnemyPathAlgo.SAHC:
             self.path = self.find_path_sahc(target_pos, tiles)
-        elif self.selected_algo == EnemyPathAlgo.Q_LEARNING:
+        elif Enemy.current_algorithm == EnemyPathAlgo.Q_LEARNING:
             self.path = self.find_path_q_learning(target_pos, tiles)
         else:
             self.path = []
@@ -305,7 +388,7 @@ class Enemy(Entity):
         # Handle obstacles
         if self.check_wall_collision(tiles, self.x_vel) or self.check_edge(tiles, 1 if dx > 0 else -1):
             if self.on_ground(tiles):
-                self.y_vel = -10
+                self.y_vel = -12
 
         self.current_action = "Run"
 
