@@ -12,6 +12,7 @@ class Map:
         self.tiles = []
         self.obobstacle_coord = []
         self.level = 0
+        self.animated_tiles = []
     # def reset(self,screen):
     #     #screen.fill((0,0,0))
     #     self.data = []
@@ -52,8 +53,11 @@ class Map:
                             self.tiles.append(Gold(col, row, f'assets/images/{num_tile}.png'))
                 else:
                     if num_tile != -1:
-                        if num_tile in [51,55,56,57,58]:
-                            self.tiles.append(Water(col, row, f'assets/images/{num_tile}.png'))       
+                        if num_tile in [51]:
+                            self.tiles.append(Water(col, row, f'assets/images/{num_tile}.png'))     
+                        elif num_tile in [55,56,57,58]:
+                            self.tiles.append(AnimatedWater(col, row, f'assets/images/{num_tile}.png'))  
+                            self.animated_tiles.append(AnimatedWater(col, row, f'assets/images/{num_tile}.png'))  
                         if num_tile in [34,35,36,37,38,39,40,41,42,43,47,48,49,50,52,53,54]:
                             if num_tile in [35,37,38,39,40,41,54]:
                                 self.obobstacle_coord.append(Ground(col, row, 'assets/images/13.png'))
